@@ -13,6 +13,7 @@ function App() {
   const [videoUrl, setVideoUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const savedWidth = localStorage.getItem('sidebarWidth');
     return savedWidth ? parseInt(savedWidth, 10) : 200;
@@ -143,18 +144,53 @@ function App() {
     videoPlayerRef.current?.seekTo(timeInSeconds);
   };
 
+  const filterOutline = (nodes: OutlineNode[], query: string): OutlineNode[] => {
+    if (!query) return nodes;
+    
+    return nodes.filter(node => {
+      const matchesTitle = node.title.toLowerCase().includes(query.toLowerCase());
+      const matchingSubsections = filterOutline(node.subsections, query);
+      return matchesTitle || matchingSubsections.length > 0;
+    }).map(node => ({
+      ...node,
+      subsections: filterOutline(node.subsections, query)
+    }));
+  };
+
   return (
     <div className="h-screen flex">
       <div 
         className="bg-white border-r relative"
         style={{ width: `${sidebarWidth}px` }}
       >
-        <div className="h-full overflow-y-auto">
-          <OutlineTree
-            outline={outline}
-            currentTime={currentTime}
-            onSeek={handleSeek}
-          />
+        <div className="h-full flex flex-col">
+          <div className="p-4 border-b">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search outline..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <OutlineTree
+              outline={filterOutline(outline, searchQuery)}
+              currentTime={currentTime}
+              onSeek={handleSeek}
+            />
+          </div>
         </div>
         <div
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500"
