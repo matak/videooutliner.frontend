@@ -1,3 +1,5 @@
+![image](https://github.com/user-attachments/assets/7477fb7e-4059-4594-8719-a988b0d99edd)
+
 # Videooutliner
 
 A React-based web application that plays a video and displays a collapsible, multi-level outline beside it. Clicking any outline entry seeks the video to its corresponding timestamp.
