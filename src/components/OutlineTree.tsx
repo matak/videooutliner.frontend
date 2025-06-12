@@ -82,11 +82,14 @@ export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) 
     });
   };
 
-  const renderNode = (node: OutlineNode, level: number = 0) => {
+  const renderNode = (node: OutlineNode, level: number = 0, parentNumber: string = '', index: number = 0) => {
     const isExpanded = expandedSections.has(node.title);
     const hasSubsections = node.subsections.length > 0;
     const startTimeInSeconds = timeToSeconds(node.start_time);
     const isActive = activeSections.has(node.title);
+    
+    // Calculate the current node number
+    const currentNumber = parentNumber ? `${parentNumber}.${index + 1}` : `${index + 1}`;
 
     return (
       <div key={node.title} className="mb-1">
@@ -113,7 +116,7 @@ export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) 
             onClick={() => onSeek(startTimeInSeconds)}
             className="flex-1"
           >
-            {node.title}
+            {currentNumber}. {node.title}
           </span>
           <span className={`text-sm ml-2 ${isActive ? 'text-gray-300' : 'text-gray-500'}`}>
             {node.start_time}
@@ -121,7 +124,7 @@ export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) 
         </div>
         {hasSubsections && isExpanded && (
           <div className="mt-1">
-            {node.subsections.map(subsection => renderNode(subsection, level + 1))}
+            {node.subsections.map((subsection, idx) => renderNode(subsection, level + 1, currentNumber, idx))}
           </div>
         )}
       </div>
@@ -130,7 +133,7 @@ export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) 
 
   return (
     <div className="h-full overflow-y-auto p-4">
-      {outline.map(node => renderNode(node))}
+      {outline.map((node, idx) => renderNode(node, 0, '', idx))}
     </div>
   );
 }; 
