@@ -55,3 +55,5 @@ coverage
 Thumbs.db
 
 .vscode
+pnpm-lock.yaml
+web/
