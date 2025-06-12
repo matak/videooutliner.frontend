@@ -13,11 +13,16 @@ function App() {
   const [videoUrl, setVideoUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
-  const [sidebarWidth, setSidebarWidth] = useState(200);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const savedWidth = localStorage.getItem('sidebarWidth');
+    return savedWidth ? parseInt(savedWidth, 10) : 200;
+  });
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
+  const isInitialLoad = useRef(true);
+  const initialTimeSet = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -58,6 +63,44 @@ function App() {
           });
 
         setVideoUrl(fullVideoPath);
+
+        // Check for timestamp in URL hash or localStorage on initial load
+        if (isInitialLoad.current && !initialTimeSet.current) {
+          let timestamp: number | null = null;
+          
+          // First check URL hash
+          const hash = window.location.hash;
+          if (hash) {
+            const hashTimestamp = parseFloat(hash.substring(1));
+            if (!isNaN(hashTimestamp)) {
+              timestamp = hashTimestamp;
+              console.log('Setting initial time from URL hash:', timestamp);
+            }
+          }
+          
+          // If no valid hash, check localStorage
+          if (timestamp === null) {
+            const storedTime = localStorage.getItem(`videoTime_${videoParam}`);
+            if (storedTime) {
+              timestamp = parseFloat(storedTime);
+              console.log('Setting initial time from localStorage:', timestamp);
+            }
+          }
+
+          // Apply the timestamp if found
+          if (timestamp !== null) {
+            setCurrentTime(timestamp);
+            // Use setTimeout to ensure video player is ready
+            setTimeout(() => {
+              if (videoPlayerRef.current) {
+                videoPlayerRef.current.seekTo(timestamp!);
+                initialTimeSet.current = true;
+              }
+            }, 100);
+          }
+          
+          isInitialLoad.current = false;
+        }
       } catch (err) {
         setError(`Error processing video URL: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -78,6 +121,7 @@ function App() {
     const delta = e.pageX - startX.current;
     const newWidth = Math.max(150, Math.min(500, startWidth.current + delta));
     setSidebarWidth(newWidth);
+    localStorage.setItem('sidebarWidth', newWidth.toString());
   };
 
   const handleMouseUp = () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { timeToSeconds } from '../utils/timeUtils';
 
 interface OutlineNode {
@@ -15,6 +15,60 @@ interface OutlineTreeProps {
 
 export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [activeSections, setActiveSections] = useState<Set<string>>(new Set());
+  const currentTimeRef = useRef(currentTime);
+  const initialHashChecked = useRef(false);
+
+  // Update the ref whenever currentTime changes
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  // Update active sections every 10 seconds
+  useEffect(() => {
+    const updateActiveSections = () => {
+      const newActiveSections = new Set<string>();
+      
+      const checkNode = (node: OutlineNode) => {
+        const startTimeInSeconds = timeToSeconds(node.start_time);
+        if (currentTimeRef.current >= startTimeInSeconds) {
+          newActiveSections.add(node.title);
+        }
+        node.subsections.forEach(checkNode);
+      };
+      
+      outline.forEach(checkNode);
+      setActiveSections(newActiveSections);
+      console.log('Debug: Current video time:', currentTimeRef.current, 'Active sections:', Array.from(newActiveSections));
+
+      // Only update hash and localStorage if we've passed the initial load
+      if (initialHashChecked.current) {
+        // Update URL hash and localStorage with current timestamp
+        const timestamp = Math.floor(currentTimeRef.current);
+        const newHash = `#${timestamp}`;
+        
+        // Update URL hash if different
+        if (window.location.hash !== newHash) {
+          window.location.hash = newHash;
+        }
+
+        // Update localStorage
+        const videoParam = new URLSearchParams(window.location.search).get('video');
+        if (videoParam) {
+          localStorage.setItem(`videoTime_${videoParam}`, timestamp.toString());
+        }
+      } else {
+        initialHashChecked.current = true;
+      }
+    };
+
+    // Initial check
+    updateActiveSections();
+    
+    // Set up interval for checks every 10 seconds
+    const interval = setInterval(updateActiveSections, 10000);
+    return () => clearInterval(interval);
+  }, [outline]); // Only re-run if outline changes
 
   const toggleSection = (title: string) => {
     setExpandedSections(prev => {
@@ -32,21 +86,23 @@ export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) 
     const isExpanded = expandedSections.has(node.title);
     const hasSubsections = node.subsections.length > 0;
     const startTimeInSeconds = timeToSeconds(node.start_time);
-    const isCurrentSection = Math.abs(currentTime - startTimeInSeconds) < 1;
+    const isActive = activeSections.has(node.title);
 
     return (
       <div key={node.title} className="mb-1">
         <div
           className={`
             flex items-center p-2 rounded cursor-pointer
-            ${isCurrentSection ? 'bg-blue-100' : 'hover:bg-gray-100'}
+            ${isActive ? 'bg-gray-700 text-white' : 'hover:bg-gray-100'}
           `}
           style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
         >
           {hasSubsections && (
             <button
               onClick={() => toggleSection(node.title)}
-              className="mr-2 w-4 h-4 flex items-center justify-center"
+              className={`mr-2 w-4 h-4 flex items-center justify-center rounded
+                ${isActive ? 'bg-black text-white' : ''}
+              `}
             >
               <span className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
                 ▶
@@ -59,7 +115,7 @@ export const OutlineTree = ({ outline, currentTime, onSeek }: OutlineTreeProps) 
           >
             {node.title}
           </span>
-          <span className="text-sm text-gray-500 ml-2">
+          <span className={`text-sm ml-2 ${isActive ? 'text-gray-300' : 'text-gray-500'}`}>
             {node.start_time}
           </span>
         </div>
